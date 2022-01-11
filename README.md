@@ -2,7 +2,7 @@
 
 ## IMPORTANT AMMENDMENTS
 
-We have made ammendments to files due to there being a mistake. The files contained a training function that would load the current model after loading a stale model. This is incorrect and was not how we trained our models in the main CIFAR-10 and Yahoo Answers tasks. However, we did use this when training our 20 client model and we have rectified and retrained. We apologise for this. In addition to retriaining, we trained a buffered Async FL model (fedbuff.py) to compare it to. Below are updated figures for the task (all trained with 20 clients).
+We have made ammendments to files due to there being a mistake. The files contained a training function that would load the current model after loading a stale model. This is incorrect and was not how we trained our models in the main CIFAR-10 and Yahoo Answers tasks. However, we did use this when training our 20 client model and we have rectified and retrained. It also the code we show in our appendices. We apologise for this. In addition to retriaining, we trained a buffered Async FL model (fedbuff.py) to compare it to. Below are updated figures for the task (all trained with 20 clients).
 
 ![](0.01_40.png)
 Training with Learning Rate = 0.01 (to reach 40% accuracy)
