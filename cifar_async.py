@@ -59,7 +59,7 @@ def clients_rand(train_len, num_clients):
     remain_num = train_len - clients_dist.sum() # Remaining client size
     client_sizes = list(clients_dist)
     client_sizes.append(remain_num)
-    return to_ret
+    return client_sizes
 
 
 def split_data(data, labels, num_clients=num_clients, classes_per_client=classes_per_client, shuffle=True):
@@ -100,7 +100,7 @@ def split_data(data, labels, num_clients=num_clients, classes_per_client=classes
             client_idxs += data_idxs[c][:amount_to_get]
             data_idxs[c] = data_idxs[c][amount_to_get:]
 
-            budget -= take
+            budget -= amount_to_get
             c = (c + 1) % n_labels
         client_split += [(data[client_idxs], labels[client_idxs])]
 
@@ -173,27 +173,6 @@ def get_data_loaders(num_clients,batch_size,classes_per_client=classes_per_clien
     test_loader  = torch.utils.data.DataLoader(CustomDataset(x_test, y_test, transforms_test), batch_size=100, shuffle=False) 
 
     return client_loaders, test_loader
-
-def baseline_dataloader(num):
-    '''
-    Loads Baseline Loader
-    num: Baseline data size
-    Returns:
-        loader: Baseline Loader
-    '''
-    x_train, y_train, x_temp, y_temp = get_datasets()
-    x , y = shuffle_list_data(x_train, y_train)
-
-    x, y = x[:num], y[:num]
-    transform_baseline = transforms.Compose([
-            transforms.ToPILImage(),
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
-    loader = torch.utils.data.DataLoader(CustomDataset(x, y, transform_baseline), batch_size=16, shuffle=True)
-
-    return loader
 
 vgg19 = [64, 64, 'POOL', 128, 128, 'POOL', 256, 256, 256, 256, 'POOL', 512, 512, 512, 512, 'POOL', 512, 512, 512, 512, 'POOL']
 
@@ -303,9 +282,11 @@ baseline_loader = baseline_dataloader(baseline_num)
 
 train_loader, test_loader = get_data_loaders(classes_per_client = classes_per_client, num_clients = num_clients, batch_size = batch_size)
 
-loss_train = [[] for _ in range(num_models)]
-loss_test = [[] for _ in range(num_models)]
-acc_test = [[] for _ in range(num_models)]
+import random
+
+loss_train = []
+loss_test = []
+acc_test = []
 loss_retrain_list=[]
 
 model_dicts = [[] for _ in range(num_models)]
@@ -318,32 +299,37 @@ while True:
         # Iterate over clients
 
         client_lengths = [len(train_loader[i]) for i in client_index]
+        print(client_lengths[r])
 
         for i in tqdm(range(num_models)):
             # Iterate over modelws
             model_dicts[i].append(global_models[i].state_dict()) # Save the model before training and changing it. We can use these for staleness
             
-            if random.randint(1, stale_prob) == 2:
+            if i == 0:
+              if random.randint(1, 2) == 2:
                 try:
-                  t = random.randint(1, stale_hist)
-                  global_models[i].load_state_dict(model_dicts[i][(r-t)])
+                  t = 1
+                  client_models[r].load_state_dict(model_dicts[i][(r-t)])
+                  print('STALE')
                 except IndexError:
-                  global_models[i].load_state_dict(model_dicts[i][(r-1)])
+                  client_models[r].load_state_dict(model_dicts[i][(r-1)])
+              else:
+                print('LOAD')
+                load_model(client_models[r], global_models[0])
                 
             loss = 0
             loss_retrain = 0
             
             updates += 25
             
-            load_model(client_models[r], global_models[i])
             loss += update(client_models[r], opt[r], train_loader[client_index[r]], epochs)
             loss_retrain += update(client_models[r], opt[r], baseline_loader, r_epochs)
             loss_retrain_list.append(loss_retrain)
-            loss_train[i].append(loss)
+            loss_train.append(loss)
             aggregate(global_models[i], client_models[r],client_lengths[r])
-
-            test_loss, acc = test_func(global_models[i], test_loader)
-            loss_test[i].append(test_loss)
-            acc_test[i].append(acc)
+            client_models[r].load_state_dict(global_models[i].state_dict())
+            test_loss, acc = test(global_models[i], test_loader)
+            loss_test.append(test_loss)
+            acc_test.append(acc)
             print(f'Model {i+1}')
-            print(f'Client {r} | Train Loss: {loss_retrain_list[-1]} | Test Accuracy: {acc} | Test Loss: {test_loss} | Update: {updates}')
+            print(f'Client {r} | Train Loss: {loss_train[-1]} | Test Accuracy: {acc} | Test Loss: {test_loss} | Update: {updates}')
