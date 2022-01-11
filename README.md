@@ -19,3 +19,4 @@ Our model reaches 50% accuracy in the third of the three tasks in 61% less updat
 All of the files contain code to load and create ***different*** dataset splits for each client. 
 
 However, the dataset splits remain the same throughout each experiment (the datasets were shuffled and split once, and they were saved and loaded as needed).
+ `yahoo.py` contains only the dataloading and model definitions. The training and helper functions are the exact same as in `cifar_sync` and `cifar_async`
