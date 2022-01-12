@@ -1,3 +1,8 @@
+"""
+Only the data loading and model definition are displayed. 
+The helper functions (test, aggregate, etc.) are the same, as is the training function as the Cifar-10 Async file.
+"""
+
 import os
 import random
 from tqdm import tqdm
@@ -14,6 +19,7 @@ from torch.utils.data.dataset import Dataset
 from torchvision import transforms 
 from torchvision.transforms import Compose 
 import matplotlib.pyplot as plt
+import _pickle as cpickle
 torch.backends.cudnn.benchmark=True
 
 classes_per_client = 2
@@ -54,34 +60,33 @@ def clients_rand(train_len, num_clients):
     sum = 0
 
     for i in range(num_clients - 1):
-        temp = random.randint(10,100)
+        temp = random.randint(1,100)
         sum += temp
         client_temp.append(temp)
 
     client_temp = np.array(client_temp)
 
-    clients_dist= ((client_temp/sum)*train_len).astype(int)
-    num  = train_len - clients_dist.sum()
-    to_ret = list(clients_dist)
-    to_ret.append(num)
-    return to_ret
+    clients_dist = ((client_temp/sum)*train_len).astype(int) 
+    remain_num = train_len - clients_dist.sum() # Remaining client size
+    client_sizes = list(clients_dist)
+    client_sizes.append(remain_num)
+    return client_sizes
 
 
 def split_data(data, labels, num_clients=num_clients, classes_per_client=classes_per_client, shuffle=True):
     '''
     Splits data among the clients
     '''
-    
-    #### constants #### 
+     
     data_len = data.shape[0]
     n_labels = np.max(labels) + 1
 
 
     ### client distribution ####
     data_pc = clients_rand(len(data), num_clients)
-    data_pc_pc = [np.maximum(1,nd // classes_per_client) for nd in data_pc]
+    data_pc_pc = [np.maximum(1,nd // classes_per_client) for nd in data_pc] # Data per client, per client
 
-    # sort for labels
+    # label sorting
     data_idxs = [[] for i in range(n_labels)]
     
     for i, label in enumerate(labels):
@@ -101,12 +106,12 @@ def split_data(data, labels, num_clients=num_clients, classes_per_client=classes
         budget = data_pc[i]
         c = np.random.randint(n_labels)
         while budget > 0:
-            take = min(data_pc_pc[i], len(data_idxs[c]), budget)
+            amount_to_get = min(data_pc_pc[i], len(data_idxs[c]), budget)
 
-            client_idxs += data_idxs[c][:take]
-            data_idxs[c] = data_idxs[c][take:]
+            client_idxs += data_idxs[c][:amount_to_get]
+            data_idxs[c] = data_idxs[c][amount_to_get:]
 
-            budget -= take
+            budget -= amount_to_get
             c = (c + 1) % n_labels
         client_split += [(data[client_idxs], labels[client_idxs])]
 
@@ -237,7 +242,9 @@ def get_data_loaders(x_train, x_test, nclients,batch_size,classes_pc=classes_pc 
     test_loader  = torch.utils.data.DataLoader(x_test, batch_size=100, shuffle=False, collate_fn=collate_batch_3) 
 
     return client_loaders, test_loader
-  
+
+### PyTorch Model Definition ###
+
 import math
 
 class MODEL(nn.Module):
