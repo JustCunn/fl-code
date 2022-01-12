@@ -1,4 +1,4 @@
-# Code from the Federated Learning section of the Uscalt BT Young Scientist project
+# Code from the Federated Learning section of the Uscalt BT Young Scientist project (Ammendments Below)
 
 # ! IMPORTANT AMMENDMENTS !
 
