@@ -27,6 +27,7 @@ stale_hist = 10
 
 batch_size = 40
 baseline_num = 100
+randnum = 10
 
 epochs = 5
 r_epochs = 20
@@ -308,7 +309,7 @@ while True:
             if i == 0:
               if random.randint(1, 2) == 2:
                 try:
-                  t = 1
+                  t = random.randint(1,randnum)
                   client_models[r].load_state_dict(model_dicts[i][(r-t)])
                   print('STALE')
                 except IndexError:
